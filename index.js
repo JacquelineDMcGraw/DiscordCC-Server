@@ -1,4 +1,3 @@
-//index.js
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { Client, Intents, Collection } = require('discord.js');
@@ -20,12 +19,28 @@ for (const file of commandFiles) {
     client.commands.set(command.name, command);
 }
 
-// WebSocket connection setup with reconnection logic
-const wsUrl = 'ws://localhost:8080';
-let ws;
+// Primary WebSocket server for client connections
+const wss = new WebSocket.Server({ port: 8080 });
+
+// Additional WebSocket server for receiving transcriptions
+const transcriptionWss = new WebSocket.Server({ port: 8081 });
+
+transcriptionWss.on('connection', function connection(ws) {
+    console.log('Connected to transcription service');
+
+    ws.on('message', function incoming(data) {
+        const message = JSON.parse(data);
+        console.log('Transcription received:', message.transcription);
+        // Further handle the transcription here, e.g., send it to a Discord channel or process it
+    });
+
+    ws.on('close', () => {
+        console.log('Transcription service disconnected');
+    });
+});
 
 function connectWebSocket() {
-    ws = new WebSocket(wsUrl);
+    const ws = new WebSocket('ws://localhost:8080');
 
     ws.on('open', () => console.log('Connected to WebSocket server'));
     ws.on('message', handleIncomingMessage);
@@ -90,12 +105,10 @@ function listen(connection) {
 
 client.on('messageCreate', async message => {
     if (!message.content.startsWith(config.prefix) || message.author.bot) return;
-
     const args = message.content.slice(config.prefix.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
 
     if (!client.commands.has(commandName)) return;
-
     try {
         await client.commands.get(commandName).execute(message, args);
     } catch (error) {
