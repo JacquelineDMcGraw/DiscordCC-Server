@@ -1,17 +1,12 @@
 const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
-const wav = require('wav');
-const deepSpeech = require('deepspeech');
-const WebSocket = require('ws'); // WebSocket is correctly imported
+const WebSocket = require('ws');
 const config = require('./config.json');
 
-const modelPath = 'ADD YOUR DEEPSPEECH MODEL PATH';
-const scorerPath = 'ADD YOUR DEEPSPEECH SCORER PATH';
-const model = new deepSpeech.Model(modelPath);
-exports.model = model;
-model.enableExternalScorer(scorerPath);
+// Assuming you have installed the necessary packages for Whisper and Hugging Face
+const { transcribeWithWhisper } = require('./whisperIntegration');
+const { transcribeWithHuggingFace } = require('./huggingFaceIntegration');
 
-const bufferSize = 512;
 const ws = new WebSocket('ws://your-websocket-server.com'); // Ensure this URL is correct
 
 async function speechToText(nickname, mp3path) {
@@ -31,29 +26,19 @@ async function speechToText(nickname, mp3path) {
 exports.speechToText = speechToText;
 
 async function transcribe(path, nickname) {
-    let modelStream = model.createStream();
-    const fileStream = fs.createReadStream(path, { highWaterMark: bufferSize });
-    const reader = new wav.Reader();
-    
-    reader.on('error', (err) => {
-        console.log('Error reading WAV file:', err);
-    });
-
-    reader.on('format', (format) => {
-        if (format.sampleRate !== model.sampleRate()) {
-            console.error(`Invalid sample rate: ${format.sampleRate}, expected: ${model.sampleRate()}`);
-            return;
+    try {
+        // Try Whisper first
+        let transcription = await transcribeWithWhisper(path);
+        if (!transcription) {
+            // If Whisper fails or returns no content, fallback to Hugging Face
+            transcription = await transcribeWithHuggingFace(path);
         }
-        reader.on('data', (data) => {
-            modelStream.feedAudioContent(data);
-        });
-        reader.on('end', () => {
-            const transcription = modelStream.finishStream();
-            fs.unlinkSync(path); // Cleanup WAV file after processing
-            sendTranscription(nickname, transcription);
-        });
-    });
-    fileStream.pipe(reader);
+        fs.unlinkSync(path); // Cleanup WAV file after processing
+        sendTranscription(nickname, transcription);
+    } catch (error) {
+        console.error("Error during transcription process:", error);
+        fs.unlinkSync(path); // Ensure cleanup of WAV file in case of error
+    }
 }
 
 function sendTranscription(nickname, transcription) {
