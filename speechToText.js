@@ -1,3 +1,4 @@
+//speechToText.js
 const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
 const WebSocket = require('ws');

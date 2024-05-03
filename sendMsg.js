@@ -1,3 +1,5 @@
+//sendMsg.js
+
 const WebSocket = require('ws'); // Ensure WebSocket is required if used directly
 const { ws } = require("./websocket-connection"); // Adjust the path as necessary
 
