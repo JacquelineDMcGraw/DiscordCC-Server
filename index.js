@@ -20,7 +20,7 @@ for (const file of commandFiles) {
 }
 
 // WebSocket connection setup with reconnection logic
-const wsUrl = 'ws://your_websocket_server_address';
+const wsUrl = 'ws://localhost:8080';
 let ws;
 
 function connectWebSocket() {
