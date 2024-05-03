@@ -8,12 +8,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ilyatsykunov/DiscordCC-Server"
+    "url": "https://github.com/JacquelineDMcGraw/DiscordCC-Server"
   },
   "author": "Ilya Tsykunov",
   "license": "MIT",
   "dependencies": {
-    "deepspeech": "^0.9.3",
     "discord.js": "^12.5.3",
     "dotenv": "^9.0.0",
     "fluent-ffmpeg": "^2.1.2",
@@ -21,6 +20,6 @@
     "lame": "^1.2.4",
     "node-opus": "^0.3.3",
     "wav": "^1.0.2",
-    "ws": "^7.4.5" // Make sure to use the latest version of ws
+    "ws": "^7.4.5" 
   }
 }
