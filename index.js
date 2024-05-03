@@ -1,18 +1,19 @@
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { Client, Intents, Collection } = require('discord.js');
-const config = require('./config.json');
-const { speechToText } = require("./speechToText");
-const { toMp3 } = require("./toMp3");
 const WebSocket = require('ws');
 
 dotenv.config();
+
+// Load configuration from config.json
+const config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+
+// Initialize Discord client
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_VOICE_STATES] });
 exports.client = client;
 
+// Load commands dynamically from the /commands directory
 client.commands = new Collection();
-
-// Load the commands from the /commands folder
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
     const command = require(`./commands/${file}`);
@@ -20,18 +21,26 @@ for (const file of commandFiles) {
 }
 
 // Primary WebSocket server for client connections
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ port: 8081 });
 
-// Additional WebSocket server for receiving transcriptions
+// Setup the WebSocket server for transcription data
 const transcriptionWss = new WebSocket.Server({ port: 8081 });
-
 transcriptionWss.on('connection', function connection(ws) {
     console.log('Connected to transcription service');
 
     ws.on('message', function incoming(data) {
         const message = JSON.parse(data);
         console.log('Transcription received:', message.transcription);
-        // Further handle the transcription here, e.g., send it to a Discord channel or process it
+
+        // Fetch the Discord channel using the ID from the config file
+        const channel = client.channels.cache.get(config.voiceChannelID);
+        if (channel) {
+            channel.send(`Transcription: ${message.transcription}`)
+                .then(() => console.log('Transcription sent to the Discord channel.'))
+                .catch(error => console.error('Failed to send transcription to Discord:', error));
+        } else {
+            console.log('Failed to find the Discord channel.');
+        }
     });
 
     ws.on('close', () => {
@@ -40,7 +49,7 @@ transcriptionWss.on('connection', function connection(ws) {
 });
 
 function connectWebSocket() {
-    const ws = new WebSocket('ws://localhost:8080');
+    const ws = new WebSocket('ws://localhost:8081');
 
     ws.on('open', () => console.log('Connected to WebSocket server'));
     ws.on('message', handleIncomingMessage);
@@ -96,7 +105,7 @@ function listen(connection) {
             audioStream.pipe(outputStream);
             audioStream.on('end', async () => {
                 outputStream.close();
-                const mp3Path = await toMp3(path);
+                const mp3Path = await toMp3(user.id, path);
                 speechToText(user.id, mp3Path);
             });
         }
