@@ -3,3 +3,6 @@
 
 # Ignore config.json file
 config.json
+
+# Ignore those thick node modules
+node_modules/
