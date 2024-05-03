@@ -11,11 +11,15 @@ const ws = new WebSocket(wsURL);
 async function toMp3(nickname, audioStream) {
 
     const dir = './tmp';
-    if (!fs.existsSync(dir))
+    if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir);
-    nickname.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    }
+
+    // Normalize the nickname to be filesystem-friendly
+    nickname = nickname.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const mp3path = `${dir}/${nickname}_${Date.now()}.mp3`;
 
+    // Configure the MP3 encoder
     var encoder = new lame.Encoder({
         // input
         channels: 2,
@@ -28,17 +32,24 @@ async function toMp3(nickname, audioStream) {
         mode: lame.MONO
     });
 
+    // Pipe the audio stream through the encoder
     audioStream.pipe(encoder);
     const mp3Stream = encoder.pipe(fs.createWriteStream(mp3path));
 
+    // Handle the finish and error events of the MP3 stream
     mp3Stream.on('finish', () => {
-        // Assuming you want to send the MP3 file path or contents to the WebSocket server
+        // Send the MP3 file path to the WebSocket server if the connection is open
         if (ws.readyState === WebSocket.OPEN) {
-            // Modify this part based on whether you want to send the path or the file content
             ws.send(JSON.stringify({nickname: nickname, mp3path: mp3path}));
         } else {
-            console.error('WebSocket is not open.');
+            console.error('WebSocket is not open. Could not send the file path.');
         }
+    }).on('error', error => {
+        console.error('Error during MP3 streaming:', error);
+        // Attempt to clean up the partially written file
+        fs.unlink(mp3path, () => {
+            console.log('Cleaned up incomplete MP3 file:', mp3path);
+        });
     });
 
     return mp3path;

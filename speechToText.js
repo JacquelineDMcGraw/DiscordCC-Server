@@ -16,12 +16,18 @@ async function speechToText(nickname, mp3path) {
         .format('wav')
         .save(path)
         .on('error', (err) => {
-            fs.unlinkSync(mp3path); // Ensure cleanup of mp3 regardless of success or failure
-            console.log('Error converting MP3 to WAV:', err);
+            console.error('Error converting MP3 to WAV:', err);
+            fs.unlink(mp3path, () => { // Asynchronously clean up the MP3 file
+                console.log('Deleted MP3 file due to error:', mp3path);
+            });
         })
         .on('end', () => {
-            fs.unlinkSync(mp3path); // Cleanup original MP3 file after conversion
-            transcribe(path, nickname);
+            transcribe(path, nickname).catch(err => {
+                console.error('Transcription failed:', err);
+                fs.unlink(path, () => { // Asynchronously clean up the WAV file
+                    console.log('Deleted WAV file due to transcription failure:', path);
+                });
+            });
         });
 }
 exports.speechToText = speechToText;
@@ -38,7 +44,9 @@ async function transcribe(path, nickname) {
         sendTranscription(nickname, transcription);
     } catch (error) {
         console.error("Error during transcription process:", error);
-        fs.unlinkSync(path); // Ensure cleanup of WAV file in case of error
+        fs.unlink(path, () => { // Asynchronously clean up the WAV file
+            console.log('Deleted WAV file due to error:', path);
+        });
     }
 }
 
